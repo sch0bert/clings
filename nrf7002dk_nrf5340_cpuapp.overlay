@@ -39,5 +39,7 @@
 	st_lis2dw12: lis2dw12@18 {
 		compatible = "st,lis2dw12";
 		reg = <0x18>;
+		irq-gpios = <&gpio1 11 0>;
+		odr = < 25 >;
 	};
 };

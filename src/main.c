@@ -57,9 +57,16 @@ static void fetch_and_display(const struct device *sensor)
 	}	
 }
 
+static void trigger_handler(const struct device *dev,
+			    const struct sensor_trigger *trig)
+{
+	LOG_INF("Trigger fired");
+}
+
 int main(void)
 {
 	const struct device *const sensor = DEVICE_DT_GET_ANY(st_lis2dw12);
+	static struct sensor_trigger sensor_trig;
 
 	if (sensor == NULL) {
 		LOG_ERR("No device found");
@@ -69,6 +76,22 @@ int main(void)
 		LOG_ERR("Device %s is not ready", sensor->name);
 		return 0;
 	}
+
+#ifdef CONFIG_LIS2DW12_TRIGGER
+	int rc = 0;
+
+	if (rc == 0) {
+		sensor_trig.type = SENSOR_TRIG_DATA_READY;
+		sensor_trig.chan = SENSOR_CHAN_AMBIENT_TEMP;
+		rc = sensor_trigger_set(sensor, &sensor_trig, trigger_handler);
+	}
+
+	if (rc != 0) {
+		LOG_ERR("Trigger set failed: %d", rc);
+		return 0;
+	}
+	LOG_INF("Trigger set got %d", rc);
+#endif
 
 	while (true) {
 		fetch_and_display(sensor);
