@@ -14,45 +14,27 @@
 
 #define SLEEP_TIME_MS   1000
 
+/* Positions */
+#define LIS2DW12_6D_PORT_RIGHT		0x08
+#define LIS2DW12_6D_PORT_LEFT		0x04
+#define LIS2DW12_6D_FACE_UP			0x02
+#define LIS2DW12_6D_FACE_DOWN		0x01
+#define LIS2DW12_6D_STANDING		0x20
+#define LIS2DW12_6D_UPSIDE_DOWN		0x10
+
 LOG_MODULE_REGISTER(Main, CONFIG_SENSOR_LOG_LEVEL);
 
 static void fetch_and_display(const struct device *sensor)
 {
-	static unsigned int count;
-	struct sensor_value accel[3];
 	struct sensor_value temperature;
-	const char *overrun = "";
-	int rc = sensor_sample_fetch(sensor);
-
-	++count;
-	if (rc == -EBADMSG) {
-		/* Sample overrun.  Ignore in polled mode. */
-		if (IS_ENABLED(CONFIG_LIS2DW12_TRIGGER)) {
-			overrun = "[OVERRUN] ";
-		}
-		rc = 0;
-	}
-	if (rc == 0) {
-		rc = sensor_channel_get(sensor,
-					SENSOR_CHAN_ACCEL_XYZ,
-					accel);
-	}
-	if (rc < 0) {
-		LOG_ERR("ERROR: Update failed: %d", rc);
-	} else {
-		LOG_INF("#%u @ %u ms: %sx %f , y %f , z %f",
-		       count, k_uptime_get_32(), overrun,
-		       sensor_value_to_double(&accel[0]),
-		       sensor_value_to_double(&accel[1]),
-		       sensor_value_to_double(&accel[2]));
-	}
+	int rc = sensor_sample_fetch(sensor); // Dummy read to trigger a sample
 
 	if (rc == 0) {
 		rc = sensor_channel_get(sensor, SENSOR_CHAN_AMBIENT_TEMP, &temperature);
 		if (rc < 0) {
 			LOG_ERR("ERROR: Unable to read temperature:%d", rc);
 		} else {
-			LOG_INF(", t %f", sensor_value_to_double(&temperature));
+			LOG_INF("%.02f C", sensor_value_to_double(&temperature));
 		}
 	}	
 }
@@ -60,7 +42,41 @@ static void fetch_and_display(const struct device *sensor)
 static void trigger_handler(const struct device *dev,
 			    const struct sensor_trigger *trig)
 {
-	LOG_INF("Trigger fired");
+	struct sensor_value orientation;
+	int rc = sensor_sample_fetch(dev);
+
+	if(rc == 0) {
+		rc = sensor_channel_get(dev, SENSOR_CHAN_ROTATION, &orientation);
+		if (rc < 0) {
+			LOG_ERR("ERROR: Unable to read orientation:%d", rc);
+		} else {
+			uint16_t rotation = sensor_value_to_double(&orientation);
+
+			switch(rotation) {
+				case LIS2DW12_6D_PORT_RIGHT:
+					LOG_INF("Portrait right");
+					break;
+				case LIS2DW12_6D_PORT_LEFT:
+					LOG_INF("Portrait left");
+					break;
+				case LIS2DW12_6D_FACE_UP:
+					LOG_INF("Standing");
+					break;
+				case LIS2DW12_6D_FACE_DOWN:
+					LOG_INF("Upside down");
+					break;
+				case LIS2DW12_6D_STANDING:
+					LOG_INF("Face down");
+					break;
+				case LIS2DW12_6D_UPSIDE_DOWN:
+					LOG_INF("Face up");
+					break;
+				default:
+					LOG_INF("Unknown - rotation: %d", rotation);
+					break;
+			}
+		}
+	}
 }
 
 int main(void)

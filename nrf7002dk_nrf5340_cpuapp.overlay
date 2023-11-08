@@ -40,6 +40,6 @@
 		compatible = "st,lis2dw12";
 		reg = <0x18>;
 		irq-gpios = <&gpio1 11 0>;
-		odr = < 25 >;
+		odr = < 12 >;
 	};
 };
